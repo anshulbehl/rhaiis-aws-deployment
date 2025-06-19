@@ -189,11 +189,11 @@
     - name: Display inventory file information
       ansible.builtin.debug:
         msg: |
-          📁 Inventory files created:
+          Inventory files created:
           - Instance-specific: ./instances/{{ instance_name }}/inventory.ini
           - Convenience symlink: ./inventory.ini
           
-          💡 Use these for manual access and future playbook runs!
+          Use these for manual access and future playbook runs!
 
     # =========================================
     # Dynamic Inventory Setup for RHAIIS
