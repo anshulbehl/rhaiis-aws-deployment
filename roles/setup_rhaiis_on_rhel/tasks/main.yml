@@ -51,7 +51,7 @@
     state: directory
     mode: '0777'
   become: false
-  become_user: "{{ student_name | default('ec2-user') }}"
+  become_user: "{{ setup_rhaiis_on_rhel_target_user }}"
 
 - name: Set vm.overcommit_memory parameter
   when: setup_rhaiis_on_rhel_mem_overcommit is defined

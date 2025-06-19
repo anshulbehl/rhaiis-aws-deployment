@@ -1,6 +1,61 @@
-= setup_rhaiis_on_rhel
+= Setup RHAIIS on RHEL Role
 
-An Ansible role to set up Red Hat AI Innovation Suite (RHAIIS) on RHEL 9.5 servers.
+This Ansible role installs and configures Red Hat AI Inference Server (RHAIIS) on Red Hat Enterprise Linux systems.
+
+== Features
+
+* Automatic NVIDIA Container Toolkit installation
+* Container registry authentication support (username/password or token)
+* Intelligent user detection for multi-user environments
+* vLLM service configuration with systemd
+* Health check monitoring
+
+== Variables
+
+=== Core Configuration
+
+* `setup_rhaiis_on_rhel_hf_token`: HuggingFace token for model access
+* `setup_rhaiis_on_rhel_api_token`: API token for accessing the deployed model
+* `setup_rhaiis_on_rhel_vllm_model`: Hugging Face model to deploy
+* `setup_rhaiis_on_rhel_vllm_port`: Port for the vLLM service (default: 8000)
+
+=== User Management
+
+* `setup_rhaiis_on_rhel_target_user`: Target user for running services
+  ** Auto-detects the SSH user (`ansible_user` or `ansible_user_id`)
+  ** Falls back to `ec2-user` if detection fails
+  ** Can be overridden in variables if needed
+  ** Supports common cloud users: `ec2-user`, `ubuntu`, `centos`, `cloud-user`
+
+=== Registry Authentication
+
+* `setup_rhaiis_on_rhel_registry_auth_enabled`: Enable registry authentication (default: true)
+* `setup_rhaiis_on_rhel_registry_url`: Registry URL (default: registry.redhat.io)
+* `setup_rhaiis_on_rhel_registry_username`: Registry username
+* `setup_rhaiis_on_rhel_registry_password`: Registry password
+* `setup_rhaiis_on_rhel_registry_auth_token`: Alternative token-based authentication
+
+== Example Usage
+
+[source,yaml]
+----
+- hosts: rhel_servers
+  become: true
+  vars:
+    setup_rhaiis_on_rhel_hf_token: "your-huggingface-token"
+    setup_rhaiis_on_rhel_registry_username: "your-registry-user"
+    setup_rhaiis_on_rhel_registry_password: "your-registry-password"
+    setup_rhaiis_on_rhel_vllm_model: "RedHatAI/Llama-3.1-8B-Instruct"
+  roles:
+    - setup_rhaiis_on_rhel
+----
+
+== Improvements from Previous Version
+
+* **Smart User Detection**: Automatically detects the SSH user instead of hardcoding `ec2-user`
+* **Cleaner Variable Names**: `setup_rhaiis_on_rhel_target_user` instead of `student_name`
+* **Reduced Duplication**: Single variable definition instead of repeated defaults
+* **Better Documentation**: Clear variable purposes and fallback behavior
 
 == Requirements
 

@@ -20,3 +20,6 @@ setup_rhaiis_on_rhel_registry_username: ""  # Your registry username
 setup_rhaiis_on_rhel_registry_password: ""  # Your registry password
 setup_rhaiis_on_rhel_vllm_model: RedHatAI/Llama-3.1-8B-Instruct
 setup_rhaiis_on_rhel_api_token: testtoken
+
+# Optional: Override the target user (auto-detected by default)
+# setup_rhaiis_on_rhel_target_user: "ec2-user"  # Uncomment to override auto-detection

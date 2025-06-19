@@ -1,5 +1,19 @@
+# Generated inventory for RHAIIS instance: {{ instance_name }}
+# Created: {{ ansible_date_time.iso8601 if ansible_date_time is defined else 'Unknown' }}
+# 
+# Usage examples:
+#   SSH to instance: ssh -i {{ ssh_key_file }} {{ target_user }}@{{ public_ip }}
+#   Run ad-hoc commands: ansible gpu_servers -i inventory.ini -m shell -a "uptime"
+#   Run playbooks: ansible-playbook your-playbook.yml -i inventory.ini
+
 [gpu_servers]
-{{ instance_name }} ansible_host={{ public_ip }} ansible_user=ec2-user ansible_ssh_private_key_file={{ ssh_key_file }} ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+{{ instance_name }} ansible_host={{ public_ip }} ansible_user={{ target_user }} ansible_ssh_private_key_file={{ ssh_key_file }} ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 
 [all:vars]
 host_key_checking=False
+
+# Instance Details:
+# - Name: {{ instance_name }}
+# - Public IP: {{ public_ip }}
+# - SSH Key: {{ ssh_key_file }}
+# - API Endpoint: http://{{ public_ip }}:8000

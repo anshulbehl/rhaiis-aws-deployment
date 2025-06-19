@@ -20,13 +20,13 @@
         mode: '0700'
       become: true
 
-    - name: Ensure .config/containers directory exists for {{ student_name | default('dev') }} user
+    - name: Ensure .config/containers directory exists for {{ setup_rhaiis_on_rhel_target_user }} user
       ansible.builtin.file:
-        path: "{{ '~' + student_name | default('ec2-user') }}/.config/containers"
+        path: "{{ '~' + setup_rhaiis_on_rhel_target_user }}/.config/containers"
         state: directory
         mode: '0700'
-      become: "{{ student_name | default('ec2-user') != ansible_user_id }}"
-      become_user: "{{ student_name | default('ec2-user') }}"
+      become: "{{ setup_rhaiis_on_rhel_target_user != ansible_user_id }}"
+      become_user: "{{ setup_rhaiis_on_rhel_target_user }}"
 
     # Block for username/password authentication method.
     - name: Configure registry authentication using username and password
@@ -39,14 +39,14 @@
             authfile: /root/.config/containers/auth.json
           become: true
 
-        - name: Log in to registry as {{ student_name | default('ec2-user') }} using username/password
+        - name: Log in to registry as {{ setup_rhaiis_on_rhel_target_user }} using username/password
           containers.podman.podman_login:
             username: "{{ setup_rhaiis_on_rhel_registry_username }}"
             password: "{{ setup_rhaiis_on_rhel_registry_password }}"
             registry: "{{ setup_rhaiis_on_rhel_registry_url }}"
-            authfile: "{{ '~' + student_name | default('ec2-user') }}/.config/containers/auth.json"
-          become: "{{ student_name | default('ec2-user') != ansible_user_id }}"
-          become_user: "{{ student_name | default('ec2-user') }}"
+            authfile: "{{ '~' + setup_rhaiis_on_rhel_target_user }}/.config/containers/auth.json"
+          become: "{{ setup_rhaiis_on_rhel_target_user != ansible_user_id }}"
+          become_user: "{{ setup_rhaiis_on_rhel_target_user }}"
       when: >
         setup_rhaiis_on_rhel_registry_username | default('') != '' and
         setup_rhaiis_on_rhel_registry_password | default('') != ''
@@ -69,7 +69,7 @@
           become: true
           no_log: true
 
-        - name: Create auth.json for {{ student_name | default('ec2-user') }} user with token
+        - name: Create auth.json for {{ setup_rhaiis_on_rhel_target_user }} user with token
           ansible.builtin.copy:
             content: |
               {
@@ -79,10 +79,10 @@
                   }
                 }
               }
-            dest: "{{ '~' + student_name | default('ec2-user') }}/.config/containers/auth.json"
+            dest: "{{ '~' + setup_rhaiis_on_rhel_target_user }}/.config/containers/auth.json"
             mode: '0600'
-          become: "{{ student_name | default('ec2-user') != ansible_user_id }}"
-          become_user: "{{ student_name | default('ec2-user') }}"
+          become: "{{ setup_rhaiis_on_rhel_target_user != ansible_user_id }}"
+          become_user: "{{ setup_rhaiis_on_rhel_target_user }}"
           no_log: true
       when: setup_rhaiis_on_rhel_registry_auth_token | default('') != ''
   when: setup_rhaiis_on_rhel_registry_auth_enabled | default(true)
@@ -91,5 +91,6 @@
 - name: Pre-pull container image
   ansible.builtin.command:
     cmd: podman pull {{ setup_rhaiis_on_rhel_vllm_container_image }}
-  become_user: "{{ student_name | default('ec2-user') }}"
+  become: true
+  become_user: "{{ setup_rhaiis_on_rhel_target_user }}"
   changed_when: true

@@ -2,7 +2,13 @@
 # Default variables for the RHAIIS setup role
 setup_rhaiis_on_rhel_hf_token: secret
 setup_rhaiis_on_rhel_api_token: secret
-setup_rhaiis_on_rhel_vllm_cache_dir: "/home/{{ student_name | default('ec2-user') }}/.cache"
+
+# User configuration - automatically detects the SSH user or uses common defaults
+# This variable will be set intelligently based on the actual connecting user
+# Common users: ec2-user (RHEL/Amazon Linux), ubuntu (Ubuntu), centos (CentOS), cloud-user (some cloud images)
+setup_rhaiis_on_rhel_target_user: "{{ ansible_user | default(ansible_user_id | default('ec2-user')) }}"
+
+setup_rhaiis_on_rhel_vllm_cache_dir: "/home/{{ setup_rhaiis_on_rhel_target_user }}/.cache"
 setup_rhaiis_on_rhel_vllm_port: 8000
 setup_rhaiis_on_rhel_vllm_tensor_parallel_size: 1
 setup_rhaiis_on_rhel_vllm_max_model_len: 2048

@@ -1,214 +1,335 @@
-# Red Hat AI Inference Server (RHAIIS) Deployment Playbooks
+# Red Hat AI Inference Server (RHAIIS) AWS Deployment
 
-This repository contains Ansible playbooks for provisioning AWS infrastructure and deploying Red Hat AI Inference Server (RHAIIS) on Red Hat Enterprise Linux.
+This repository provides a **one-command deployment** solution for Red Hat AI Inference Server (RHAIIS) on AWS. Deploy from zero to a fully functional AI inference server in minutes!
 
-## Overview
+## What You Get
 
-These playbooks enable you to:
-1. Provision an AWS EC2 instance with RHEL 9.5
-2. Install NVIDIA drivers and CUDA
-3. Deploy RHAIIS with your chosen foundation model
-4. Tear down the infrastructure when no longer needed
+- **One-Command Deployment**: Full infrastructure + software deployment with `ansible-playbook deploy.yml -e @vars.yml`
+- **Complete AWS Infrastructure**: VPC, subnet, security groups, EC2 instance with GPU support
+- **Production-Ready Setup**: NVIDIA CUDA drivers, container runtime, and systemd service configuration
+- **AI Model Deployment**: Automatically deploys your chosen foundation model (default: Llama-3.1-8B-Instruct)
+- **Persistent Access**: Generated inventory files for ongoing management and SSH access
+- **Easy Cleanup**: One command to tear down all resources
 
-## Prerequisites
+## Quick Start
+
+### Prerequisites
 
 - Ansible Core 2.15 or higher
 - AWS account with appropriate permissions
 - AWS CLI configured with access credentials
-- Python 3.9 or higher with required packages
+- Python 3.9 or higher
 
-## Installation
+### Installation
 
-1. Clone this repository:
+1. **Clone this repository:**
    ```bash
-   git clone https://github.com/yourusername/rhaiis-playbooks.git
-   cd rhaiis-playbooks
+   git clone https://github.com/yourusername/rhaiis-aws-deployment.git
+   cd rhaiis-aws-deployment
    ```
 
-2. Install required Ansible collections:
+2. **Install required Ansible collections:**
    ```bash
    ansible-galaxy collection install -r collections/requirements.yml
    ```
 
-## Configuration
-
-1. Copy the sample variables file and customize it for your environment:
+3. **Configure your deployment:**
    ```bash
    cp sample_vars.yml vars.yml
+   # Edit vars.yml with your AWS settings, HuggingFace token, etc.
    ```
 
-2. Edit `vars.yml` to set your specific configuration:
-   - AWS instance details (type, region, AMI)
-   - Instance name and tags
-   - SSH key name
-   - Root volume size
-   - Hugging Face token
-   - RHAIIS model selection
+### Deploy Everything
 
-## Usage
-
-### Provisioning AWS Infrastructure
-
-To provision the AWS infrastructure:
+**Deploy your complete RHAIIS infrastructure and software stack:**
 
 ```bash
-ansible-playbook provision_aws.yml -e @vars.yml
+ansible-playbook deploy.yml -e @vars.yml
 ```
 
-This will:
-1. Create a VPC, subnet, security group, and internet gateway
-2. Launch an EC2 instance with the specified instance type
-3. Configure a 500GB root volume (or your specified size)
-4. Create an instance-specific inventory file in the `instances/<instance_name>/` directory
-5. Create a symlink to the current instance's inventory at `inventory.ini`
+That's it! This single command will:
 
-### Deploying RHAIIS
+1. **Build AWS Infrastructure** (VPC, subnet, security groups, EC2 instance)
+2. **Install NVIDIA CUDA** (drivers, toolkit, container runtime)
+3. **Deploy RHAIIS** (container service, model deployment, API configuration)
+4. **Verify Deployment** (health checks, connection testing)
+5. **Provide Access Details** (SSH commands, API endpoints, testing examples)
 
-To install and configure RHAIIS on the provisioned instance:
+## Configuration
 
-```bash
-ansible-playbook rhaiis.yml -i inventory.ini -e @vars.yml
+Edit `vars.yml` to customize your deployment:
+
+### Core Settings
+```yaml
+instance_name: "my-rhaiis-instance"
+region: "us-east-1"
+instance_type: "g5.2xlarge"  # GPU instance for AI workloads
+volume_size: 500             # Disk space in GB
+
+# Authentication
+setup_rhaiis_on_rhel_hf_token: "your-huggingface-token"
+setup_rhaiis_on_rhel_registry_username: "your-registry-user"
+setup_rhaiis_on_rhel_registry_password: "your-registry-password"
+
+# Model Configuration
+setup_rhaiis_on_rhel_vllm_model: "RedHatAI/Llama-3.1-8B-Instruct"
+setup_rhaiis_on_rhel_api_token: "your-api-token"
 ```
 
-This will:
-1. Set up NVIDIA drivers and CUDA
-2. Install RHAIIS components
-3. Deploy the specified model (default: RedHatAI/Llama-3.1-8B-Instruct)
-4. Configure the service for production use
+### Instance Tagging
+```yaml
+instance_tags:
+  owner: "your-username"
+  Environment: "Development"
+  Project: "RHAIIS"
+  CostCenter: "Engineering"
+```
 
-### Testing the Deployed Model
+## Testing Your Deployment
 
-After deploying the model, you can test it using curl commands. The API requires an authentication token which is set by the `setup_rhaiis_on_rhel_api_token` variable in your vars.yml file.
+After deployment completes, test your RHAIIS instance:
 
-#### Check if the Model Server is Running
+### Check Available Models
 ```bash
-# Replace <INSTANCE_IP> with your EC2 instance's public IP address
 curl -s http://<INSTANCE_IP>:8000/v1/models \
-  -H "Authorization: Bearer testtoken" | jq
+  -H "Authorization: Bearer your-api-token" | jq
 ```
 
-#### Test Text Generation
+### Generate Text
 ```bash
 curl -X POST http://<INSTANCE_IP>:8000/v1/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer testtoken" \
+  -H "Authorization: Bearer your-api-token" \
   -d '{
     "model": "RedHatAI/Llama-3.1-8B-Instruct",
-    "prompt": "Write a short poem about Linux",
-    "max_tokens": 100,
+    "prompt": "Explain the benefits of using Red Hat Enterprise Linux",
+    "max_tokens": 200,
     "temperature": 0.7
   }'
 ```
 
-#### Test Chat Completion
+### Chat Completion
 ```bash
 curl -X POST http://<INSTANCE_IP>:8000/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer testtoken" \
+  -H "Authorization: Bearer your-api-token" \
   -d '{
     "model": "RedHatAI/Llama-3.1-8B-Instruct",
     "messages": [
-      {"role": "system", "content": "You are a helpful assistant."},
-      {"role": "user", "content": "What are the key features of RHEL 9?"}
+      {"role": "system", "content": "You are a helpful AI assistant."},
+      {"role": "user", "content": "What are the advantages of GPU-accelerated AI inference?"}
     ],
     "temperature": 0.7,
-    "max_tokens": 150
+    "max_tokens": 250
   }'
 ```
 
-### Tearing Down Infrastructure
+## Ongoing Management
 
-To remove all AWS resources when you're done:
+### SSH Access
+```bash
+# Direct SSH (command provided in deployment output)
+ssh -i ./your-key.pem ec2-user@<instance-ip>
+
+# Or check the generated inventory file for details
+cat inventory.ini
+```
+
+### Ansible Management
+```bash
+# Check service status
+ansible gpu_servers -i inventory.ini -m shell -a "systemctl status rhaiis"
+
+# Monitor GPU usage
+ansible gpu_servers -i inventory.ini -m shell -a "nvidia-smi"
+
+# Check system resources
+ansible gpu_servers -i inventory.ini -m shell -a "free -h && df -h"
+
+# View RHAIIS logs
+ansible gpu_servers -i inventory.ini -m shell -a "tail -f /tmp/rhaiis.log"
+```
+
+### Run Additional Playbooks
+```bash
+# Deploy updates or configuration changes
+ansible-playbook maintenance.yml -i inventory.ini
+
+# Scale or modify the deployment
+ansible-playbook update-config.yml -i inventory.ini
+```
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        AWS Account                          │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                Custom VPC                           │   │
+│  │                                                     │   │
+│  │  ┌───────────────────────────────────────────────┐ │   │
+│  │  │              Public Subnet                    │ │   │
+│  │  │                                               │ │   │
+│  │  │  ┌─────────────────────────────────────────┐ │ │   │
+│  │  │  │         EC2 Instance                    │ │ │   │
+│  │  │  │         (g5.2xlarge)                    │ │ │   │
+│  │  │  │                                         │ │ │   │
+│  │  │  │  ┌─────────────────────────────────┐   │ │ │   │
+│  │  │  │  │        RHAIIS Stack             │   │ │ │   │
+│  │  │  │  │                                 │   │ │ │   │
+│  │  │  │  │  • RHEL 9.5                     │   │ │ │   │
+│  │  │  │  │  • NVIDIA CUDA Drivers          │   │ │ │   │
+│  │  │  │  │  • Container Runtime            │   │ │ │   │
+│  │  │  │  │  • vLLM Service                 │   │ │ │   │
+│  │  │  │  │  • Foundation Model             │   │ │ │   │
+│  │  │  │  │  • API Server (Port 8000)       │   │ │ │   │
+│  │  │  │  └─────────────────────────────────┘   │ │ │   │
+│  │  │  └─────────────────────────────────────────┘ │ │   │
+│  │  └───────────────────────────────────────────────┘ │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Repository Structure
+
+```
+rhaiis-aws-deployment/
+├── deploy.yml                    # Main unified deployment playbook
+├── sample_vars.yml              # Configuration template
+├── inventory.ini.j2             # Inventory template
+├── teardown_aws.yml            # Infrastructure cleanup
+├── roles/                       # Ansible roles
+│   ├── setup_nvidia_cuda/       #   GPU driver setup
+│   └── setup_rhaiis_on_rhel/    #   RHAIIS installation
+├── collections/requirements.yml # Required Ansible collections
+└── instances/                   # Generated inventory files
+```
+
+## Cleanup
+
+Remove all AWS resources when you're done:
 
 ```bash
 ansible-playbook teardown_aws.yml -e @vars.yml
 ```
 
 This will:
-1. Terminate the EC2 instance
-2. Delete associated resources (security group, subnet, internet gateway, VPC)
-3. Remove the key pair from AWS
-4. Delete the local PEM file
-5. Remove the instance-specific directory and inventory symlink
+- Terminate the EC2 instance
+- Delete VPC and associated networking resources
+- Remove security groups and key pairs
+- Clean up local files and inventory
 
-## Key Variables
+## Advanced Usage
 
-| Variable | Description | Default Value |
-|----------|-------------|---------------|
-| instance_name | Name for your EC2 instance | your-rhaiis-instance |
-| region | AWS region | us-east-1 |
-| ami_id | AMI ID for RHEL 9.5 | ami-0673a5faaca9a47cb |
-| instance_type | AWS instance type | g5.2xlarge |
-| key_name | SSH key name | your-key-name |
-| vpc_cidr | VPC CIDR block | 10.0.0.0/16 |
-| subnet_cidr | Subnet CIDR block | 10.0.1.0/24 |
-| volume_size | Root volume size in GB | 500 |
-| instance_tags | Dictionary of tags to apply to the EC2 instance | See below |
-| setup_rhaiis_on_rhel_hf_token | HuggingFace token | your-huggingface-token |
-| setup_rhaiis_on_rhel_vllm_model | Hugging Face model to deploy | RedHatAI/Llama-3.1-8B-Instruct |
-| setup_rhaiis_on_rhel_api_token | API token for accessing deployed model | testtoken |
+### Multi-Instance Management
 
-### Instance Tagging
+Deploy multiple RHAIIS instances by changing the `instance_name` in your vars.yml:
 
-You can add custom tags to your EC2 instance by defining the `instance_tags` variable in your `vars.yml` file:
+```bash
+# Deploy first instance
+ansible-playbook deploy.yml -e @vars.yml -e instance_name=rhaiis-dev
 
-```yaml
-# Instance tags
-instance_tags:
-  Name: "your-rhaiis-instance"  # Will be overridden by instance_name
-  owner: "your-username"        # Owner tag
-  Environment: "Development"    # Environment tag
-  Project: "RHAIIS"             # Project tag
+# Deploy second instance  
+ansible-playbook deploy.yml -e @vars.yml -e instance_name=rhaiis-staging
+
+# Switch between instances
+ln -sf ./instances/rhaiis-dev/inventory.ini inventory.ini
+ln -sf ./instances/rhaiis-staging/inventory.ini inventory.ini
 ```
 
-The `Name` tag will always be set to the value of `instance_name`, but you can add any additional tags you need.
+### Step-by-Step Deployment (Advanced)
 
-## Multi-Instance Management
+For debugging or customization, you can run the deployment in steps:
 
-The playbooks support managing multiple instances by:
-1. Creating instance-specific directories under `instances/<instance_name>/`
-2. Storing each instance's inventory file separately
-3. Creating a symlink from `inventory.ini` to the current instance's inventory
+```bash
+# 1. Provision infrastructure only
+ansible-playbook provision_aws.yml -e @vars.yml
 
-This allows you to switch between instances by simply updating the symlink.
-
-## Repository Structure
-
-- `provision_aws.yml` - Playbook for AWS infrastructure provisioning
-- `rhaiis.yml` - Playbook for RHAIIS installation and configuration
-- `teardown_aws.yml` - Playbook for infrastructure cleanup
-- `inventory.ini.j2` - Template for Ansible inventory
-- `instances/` - Directory for instance-specific inventory files
-- `roles/` - Ansible roles for specific tasks
-  - `setup_nvidia_cuda/` - Role for NVIDIA driver and CUDA setup
-  - `setup_rhaiis_on_rhel/` - Role for RHAIIS installation
-- `collections/` - Ansible collection requirements
-
-## Notes
-
-- The g5.2xlarge instance type has 24GB of GPU memory, which is sufficient for running the Llama-3.1-8B model.
-- Make sure your AWS credentials are properly configured before running the playbooks.
-- The inventory.ini file is automatically generated during provisioning with the correct SSH key and host settings.
-- If you already have a PEM file matching your key_name, the playbook will use it instead of creating a new key pair.
+# 2. Deploy software stack
+ansible-playbook rhaiis.yml -i inventory.ini -e @vars.yml
+```
 
 ## Troubleshooting
 
-- If SSH connection fails, verify that your AWS security group allows SSH access.
+### Common Issues
 
-- For model deployment issues:
-  - Check the RHAIIS logs on the instance: `sudo cat /tmp/rhaiis.log`
-  - Common issues include:
-    - GPU memory errors: Check if your instance has enough GPU memory for the model
-    - Authentication failures: Verify your Hugging Face token is valid
-    - Model download issues: Ensure network connectivity to Hugging Face
-    - If model download appears stuck (no progress in logs), try:
-      ```bash
-      sudo systemctl stop rhaiis.service
-      sudo systemctl start rhaiis.service
-      # Monitor the logs to ensure download resumes
-      sudo tail -f /tmp/rhaiis.log
-      ```
-  - You can restart the RHAIIS service with: `sudo systemctl restart rhaiis.service`
-  - View real-time logs with: `sudo tail -f /tmp/rhaiis.log`
+**SSH Connection Failed:**
+- Check security group rules allow SSH (port 22)
+- Verify your SSH key permissions: `chmod 600 your-key.pem`
+- Ensure your IP is allowed in the security group
 
-- If the playbook fails during provisioning, you may need to manually run the teardown playbook to clean up resources.
+**Model Download Stuck:**
+- **Symptoms**: Download gets stuck at high percentage (e.g., 97%) with no progress
+- **Example**: `model-00002-of-00004.safetensors: 97% 4.87G/5.00G [stuck]`
+- **Solution**: Restart the RHAIIS service to resume the download:
+  ```bash
+  ansible gpu_servers -i inventory.ini -m shell -a "sudo systemctl restart rhaiis"
+  ansible gpu_servers -i inventory.ini -m shell -a "tail -f /tmp/rhaiis.log"
+  ```
+- **Root Cause**: Network timeouts, partial file corruption, or resource locks during large file downloads
+
+**Model Loading Failed:**
+- Verify your HuggingFace token has access to the model
+- Check instance has sufficient memory for the model size
+- Review logs: `ansible gpu_servers -i inventory.ini -m shell -a "tail -n 100 /tmp/rhaiis.log"`
+
+**GPU Not Detected:**
+- Ensure you're using a GPU instance type (g5.*, p3.*, p4.*)
+- Check NVIDIA drivers: `ansible gpu_servers -i inventory.ini -m shell -a "nvidia-smi"`
+
+### Getting Help
+
+- Check the deployment output for specific error messages
+- Review logs on the instance: `tail -f /tmp/rhaiis.log`
+- Verify AWS permissions and quotas
+- Ensure all required variables are set in `vars.yml`
+
+## Key Variables Reference
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `instance_name` | Unique name for your EC2 instance | `your-rhaiis-instance` | Yes |
+| `region` | AWS region for deployment | `us-east-1` | Yes |
+| `instance_type` | AWS instance type (use GPU instances) | `g5.2xlarge` | Yes |
+| `setup_rhaiis_on_rhel_hf_token` | HuggingFace access token | - | Yes |
+| `setup_rhaiis_on_rhel_registry_username` | Registry username | - | Yes |
+| `setup_rhaiis_on_rhel_registry_password` | Registry password | - | Yes |
+| `setup_rhaiis_on_rhel_vllm_model` | Model to deploy | `RedHatAI/Llama-3.1-8B-Instruct` | No |
+| `volume_size` | Root volume size in GB | `500` | No |
+| `key_name` | SSH key name (auto-generated if empty) | `""` | No |
+
+## Cost Considerations
+
+- **g5.2xlarge**: ~$1.01/hour (24GB GPU memory)
+- **Storage**: ~$0.10/GB/month for EBS volumes
+- **Network**: Minimal for API usage
+- **Estimated monthly cost**: ~$750/month for 24/7 operation
+
+Remember to use `teardown_aws.yml` when you're done to avoid ongoing charges!
+
+## TODO / Future Enhancements
+
+### HTTPS Support with Nginx Proxy
+
+Add nginx reverse proxy configuration to enable secure HTTPS access to the RHAIIS API:
+
+- **SSL/TLS Termination**: Configure nginx to handle SSL certificates and terminate HTTPS connections
+- **Reverse Proxy Setup**: Forward requests from nginx (port 443) to RHAIIS backend (port 8000)
+- **Certificate Management**: Integrate Let's Encrypt or AWS Certificate Manager for automatic SSL certificate provisioning
+- **Security Headers**: Add appropriate security headers (HSTS, CSP, etc.) for production deployment
+- **Rate Limiting**: Implement request rate limiting and DDoS protection at the proxy level
+- **Load Balancing**: Support for multiple RHAIIS backend instances when scaling horizontally
+
+**Implementation Considerations:**
+- Create new Ansible role: `setup_nginx_proxy`
+- Update security groups to allow HTTPS traffic (port 443)
+- Add domain name and DNS configuration variables
+- Include nginx configuration templates for SSL and proxy settings
+- Add health checks and monitoring for the proxy layer
+
+---
+
+## Summary
+
+You now have a production-ready AI inference server running on AWS. The deployment provides you with a powerful GPU-accelerated instance running the latest Red Hat AI Inference Server with your chosen foundation model, ready to handle AI workloads at scale.
