@@ -301,10 +301,10 @@ ansible-playbook rhaiis.yml -i inventory.ini -e @vars.yml
 
 ## Cost Considerations
 
-- **g5.2xlarge**: ~$1.01/hour (24GB GPU memory)
-- **Storage**: ~$0.10/GB/month for EBS volumes
-- **Network**: Minimal for API usage
-- **Estimated monthly cost**: ~$750/month for 24/7 operation
+- **g5.2xlarge**: $1.212/hour (24GB GPU memory, 1x NVIDIA A10G)
+- **Storage**: $0.10/GB/month for EBS volumes (500GB = $50/month)
+- **Network**: Minimal for API usage (~$5-10/month)
+- **Total estimated monthly cost**: ~$940/month for 24/7 operation
 
 Remember to use `teardown_aws.yml` when you're done to avoid ongoing charges!
 
