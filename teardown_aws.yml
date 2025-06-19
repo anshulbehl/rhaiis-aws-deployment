@@ -49,8 +49,33 @@
       register: route_tables
       when: vpc_id is defined
 
-    # Delete route tables before subnets
-    - name: Delete route tables
+        # Clean up any blackhole routes that might prevent route table deletion
+    - name: Remove blackhole routes using AWS CLI
+      ansible.builtin.shell: |
+        set -o pipefail
+        # Get route tables with blackhole routes and clean them up
+        rt_query='RouteTables[?Routes[?State==`blackhole`]].RouteTableId'
+        for rt_id in $(aws ec2 describe-route-tables --region {{ region }} \
+                       --filters "Name=vpc-id,Values={{ vpc_id }}" \
+                       --query "$rt_query" --output text); do
+          echo "Cleaning blackhole routes from route table: $rt_id"
+          # Delete any blackhole routes (typically 0.0.0.0/0 pointing to deleted IGW)
+          route_query='RouteTables[0].Routes[?State==`blackhole`].DestinationCidrBlock'
+          aws ec2 describe-route-tables --region {{ region }} --route-table-ids $rt_id \
+              --query "$route_query" --output text | while read -r cidr; do
+            if [ "$cidr" != "None" ] && [ "$cidr" != "" ]; then
+              echo "Removing blackhole route: $cidr from $rt_id"
+              aws ec2 delete-route --region {{ region }} --route-table-id $rt_id \
+                  --destination-cidr-block $cidr || true
+            fi
+          done
+        done
+      when: vpc_id is defined
+      failed_when: false
+      changed_when: false
+
+    # Delete non-main route tables (main route tables are deleted with VPC)
+    - name: Delete non-main route tables
       amazon.aws.ec2_vpc_route_table:
         region: "{{ region }}"
         vpc_id: "{{ vpc_id }}"
@@ -59,7 +84,10 @@
       loop: "{{ route_tables.route_tables | default([]) }}"
       loop_control:
         label: "{{ item.id }}"
-      when: vpc_id is defined and route_tables.route_tables is defined
+      when:
+        - vpc_id is defined
+        - route_tables.route_tables is defined
+        - not (item.associations | default([]) | selectattr('main', 'equalto', true) | list)
       failed_when: false
 
     - name: Delete security group
@@ -137,7 +165,7 @@
         path: "./{{ final_key_name }}.pem"
         state: absent
       failed_when: false
-      
+
     - name: Remove inventory symlink if it exists
       ansible.builtin.file:
         path: "./inventory.ini"
