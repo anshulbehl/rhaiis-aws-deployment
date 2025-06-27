@@ -11,9 +11,13 @@
   ansible.builtin.get_url:
     url: https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo
     dest: /etc/yum.repos.d/nvidia-container-toolkit.repo
+    mode: '0644'
+  become: true
 
 - name: Clean yum cache
   ansible.builtin.command: yum clean all
+  changed_when: false
+  become: true
 
 - name: Install nvidia-container-toolkit
   ansible.builtin.yum:
@@ -52,6 +56,10 @@
     mode: '0777'
   become: false
   become_user: "{{ setup_rhaiis_on_rhel_target_user }}"
+
+- name: Pre-download model from HuggingFace Hub
+  ansible.builtin.include_tasks: download_model.yml
+  when: setup_rhaiis_on_rhel_predownload_model | bool
 
 - name: Set vm.overcommit_memory parameter
   when: setup_rhaiis_on_rhel_mem_overcommit is defined

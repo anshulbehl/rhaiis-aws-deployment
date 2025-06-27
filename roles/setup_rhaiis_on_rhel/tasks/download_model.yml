@@ -1,0 +1,100 @@
+---
+- name: Ensure HuggingFace cache directory structure exists
+  ansible.builtin.file:
+    path: "{{ setup_rhaiis_on_rhel_vllm_cache_dir }}/huggingface"
+    state: directory
+    owner: "{{ setup_rhaiis_on_rhel_target_user }}"
+    group: "{{ setup_rhaiis_on_rhel_target_user }}"
+    mode: '0755'
+  become: true
+
+- name: Install Python3 pip
+  ansible.builtin.dnf:
+    name: python3-pip
+    state: present
+  become: true
+
+- name: Install huggingface-hub CLI tool
+  ansible.builtin.pip:
+    name: huggingface_hub[cli]
+    state: present
+    executable: pip3
+  become: true
+
+- name: Check if model is already cached
+  ansible.builtin.find:
+    paths: "{{ setup_rhaiis_on_rhel_vllm_cache_dir }}/huggingface"
+    patterns: "*{{ setup_rhaiis_on_rhel_vllm_model.replace('/', '--') }}*"
+    file_type: directory
+  register: cached_model_check
+  become_user: "{{ setup_rhaiis_on_rhel_target_user }}"
+
+- name: Pre-download model from HuggingFace (with configurable timeout)
+  ansible.builtin.shell: |
+    timeout {{ setup_rhaiis_on_rhel_download_timeout }} \
+      huggingface-cli download {{ setup_rhaiis_on_rhel_vllm_model }} \
+      --cache-dir {{ setup_rhaiis_on_rhel_vllm_cache_dir }}/huggingface \
+      --token {{ setup_rhaiis_on_rhel_hf_token }} \
+      --resume-download
+  become_user: "{{ setup_rhaiis_on_rhel_target_user }}"
+  environment:
+    HF_HOME: "{{ setup_rhaiis_on_rhel_vllm_cache_dir }}/huggingface"
+    HF_TOKEN: "{{ setup_rhaiis_on_rhel_hf_token }}"
+  when: cached_model_check.matched == 0
+  register: model_download_result
+  retries: "{{ setup_rhaiis_on_rhel_download_retries }}"
+  delay: "{{ setup_rhaiis_on_rhel_download_retry_delay }}"
+  until: model_download_result.rc == 0 or model_download_result.rc == 124
+  async: "{{ setup_rhaiis_on_rhel_download_async_timeout }}"
+  poll: "{{ setup_rhaiis_on_rhel_download_poll_interval }}"
+  failed_when: false
+
+- name: Handle download timeout or failure
+  ansible.builtin.debug:
+    msg: |
+      Download attempt completed:
+      - Return code: {{ model_download_result.rc }}
+      - Status: >-
+        {{ 'Timeout (will retry)' if model_download_result.rc == 124
+           else 'Success' if model_download_result.rc == 0
+           else 'Failed (will retry)' }}
+  when: cached_model_check.matched == 0
+
+- name: Clean up partial downloads on timeout
+  ansible.builtin.shell: |
+    find {{ setup_rhaiis_on_rhel_vllm_cache_dir }}/huggingface \
+      -name "*.tmp" -type f -delete 2>/dev/null || true
+    find {{ setup_rhaiis_on_rhel_vllm_cache_dir }}/huggingface \
+      -name "*.lock" -type f -delete 2>/dev/null || true
+  become_user: "{{ setup_rhaiis_on_rhel_target_user }}"
+  when: >
+    cached_model_check.matched == 0 and
+    model_download_result.rc == 124
+
+- name: Verify model download completed successfully
+  ansible.builtin.find:
+    paths: "{{ setup_rhaiis_on_rhel_vllm_cache_dir }}/huggingface"
+    patterns: "*{{ setup_rhaiis_on_rhel_vllm_model.replace('/', '--') }}*"
+    file_type: directory
+  register: model_verification
+  become_user: "{{ setup_rhaiis_on_rhel_target_user }}"
+
+- name: Display model download status
+  ansible.builtin.debug:
+    msg: |
+      Model download status:
+      - Model: {{ setup_rhaiis_on_rhel_vllm_model }}
+      - Cache location: >-
+        {{ setup_rhaiis_on_rhel_vllm_cache_dir }}/huggingface
+      - Status: >-
+        {{ 'Already cached' if cached_model_check.matched > 0
+           else 'Successfully downloaded' }}
+      - Model directories found: {{ model_verification.matched }}
+  when: model_verification.matched > 0
+
+- name: Fail if model download verification failed
+  ansible.builtin.fail:
+    msg: >-
+      Model download failed - no model files found in cache after download
+      attempt
+  when: model_verification.matched == 0

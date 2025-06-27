@@ -1,222 +1,152 @@
-= Setup RHAIIS on RHEL Role
+= Red Hat AI Inference Server (RHAIIS) Setup Role
 
-This Ansible role installs and configures Red Hat AI Inference Server (RHAIIS) on Red Hat Enterprise Linux systems.
+This role configures a RHEL system to run Red Hat AI Inference Server using vLLM in a containerized environment with NVIDIA GPU support.
 
 == Features
 
-* Automatic NVIDIA Container Toolkit installation
-* Container registry authentication support (username/password or token)
-* Intelligent user detection for multi-user environments
-* vLLM service configuration with systemd
-* Health check monitoring
-
-== Variables
-
-=== Core Configuration
-
-* `setup_rhaiis_on_rhel_hf_token`: HuggingFace token for model access
-* `setup_rhaiis_on_rhel_api_token`: API token for accessing the deployed model
-* `setup_rhaiis_on_rhel_vllm_model`: Hugging Face model to deploy
-* `setup_rhaiis_on_rhel_vllm_port`: Port for the vLLM service (default: 8000)
-
-=== User Management
-
-* `setup_rhaiis_on_rhel_target_user`: Target user for running services
-  ** Auto-detects the SSH user (`ansible_user` or `ansible_user_id`)
-  ** Falls back to `ec2-user` if detection fails
-  ** Can be overridden in variables if needed
-  ** Supports common cloud users: `ec2-user`, `ubuntu`, `centos`, `cloud-user`
-
-=== Registry Authentication
-
-* `setup_rhaiis_on_rhel_registry_auth_enabled`: Enable registry authentication (default: true)
-* `setup_rhaiis_on_rhel_registry_url`: Registry URL (default: registry.redhat.io)
-* `setup_rhaiis_on_rhel_registry_username`: Registry username
-* `setup_rhaiis_on_rhel_registry_password`: Registry password
-* `setup_rhaiis_on_rhel_registry_auth_token`: Alternative token-based authentication
-
-== Example Usage
-
-[source,yaml]
-----
-- hosts: rhel_servers
-  become: true
-  vars:
-    setup_rhaiis_on_rhel_hf_token: "your-huggingface-token"
-    setup_rhaiis_on_rhel_registry_username: "your-registry-user"
-    setup_rhaiis_on_rhel_registry_password: "your-registry-password"
-    setup_rhaiis_on_rhel_vllm_model: "RedHatAI/Llama-3.1-8B-Instruct"
-  roles:
-    - setup_rhaiis_on_rhel
-----
-
-== Improvements from Previous Version
-
-* **Smart User Detection**: Automatically detects the SSH user instead of hardcoding `ec2-user`
-* **Cleaner Variable Names**: `setup_rhaiis_on_rhel_target_user` instead of `student_name`
-* **Reduced Duplication**: Single variable definition instead of repeated defaults
-* **Better Documentation**: Clear variable purposes and fallback behavior
+* NVIDIA GPU support with CDI configuration
+* Container registry authentication for Red Hat registries
+* HuggingFace model pre-download for improved reliability
+* Systemd service management for RHAIIS
+* Health checks and monitoring capabilities
 
 == Requirements
 
-* RHEL 9.5 target server
-* NVIDIA GPU(s)
-* Podman installed on the target system
-* Ansible 2.9 or newer
+* RHEL-based system (RHEL 8.6+, RHEL 9+)
+* NVIDIA GPU with compatible drivers
+* Podman container runtime
+* Internet connectivity for downloading models and container images
+* Valid HuggingFace token for model access
+* Valid Red Hat registry credentials
 
 == Role Variables
 
-All variables are defined in `defaults/main.yml`:
+=== Authentication
+[source,yaml]
+----
+setup_rhaiis_on_rhel_hf_token: secret                    # HuggingFace API token
+setup_rhaiis_on_rhel_api_token: secret                   # RHAIIS API token for authentication
+----
 
-[cols="1,2,1", options="header"]
-|===
-|Variable |Description |Default Value
+=== User Configuration
+[source,yaml]
+----
+setup_rhaiis_on_rhel_target_user: "{{ ansible_user | default(ansible_user_id | default('ec2-user')) }}"
+----
 
-|`hf_token`
-|Hugging Face API token
-|"secret"
+=== vLLM Configuration
+[source,yaml]
+----
+setup_rhaiis_on_rhel_vllm_cache_dir: "/home/{{ setup_rhaiis_on_rhel_target_user }}/.cache"
+setup_rhaiis_on_rhel_vllm_port: 8000
+setup_rhaiis_on_rhel_vllm_tensor_parallel_size: 1
+setup_rhaiis_on_rhel_vllm_max_model_len: 2048
+setup_rhaiis_on_rhel_vllm_model: "RedHatAI/Mistral-7B-Instruct-v0.3-FP8"
+setup_rhaiis_on_rhel_vllm_container_name: "rhaiis"
+setup_rhaiis_on_rhel_vllm_container_image: "registry.redhat.io/rhaiis/vllm-cuda-rhel9"
+----
 
-|`vllm_cache_dir`
-|Directory for vLLM cache
-|"/home/{{ student_name | default('dev') }}/.cache/vllm"
+=== Model Pre-download
+[source,yaml]
+----
+setup_rhaiis_on_rhel_predownload_model: true             # Enable model pre-download (recommended)
+setup_rhaiis_on_rhel_download_timeout: 600               # Download timeout in seconds (10 minutes)
+setup_rhaiis_on_rhel_download_retries: 3                 # Number of download retry attempts
+setup_rhaiis_on_rhel_download_retry_delay: 60            # Delay between retries in seconds
+setup_rhaiis_on_rhel_download_async_timeout: 1200        # Ansible async timeout (20 minutes)
+setup_rhaiis_on_rhel_download_poll_interval: 30          # Ansible polling interval in seconds
+----
 
-|`vllm_port`
-|Port to expose vLLM service
-|8000
+=== Registry Authentication
+[source,yaml]
+----
+setup_rhaiis_on_rhel_registry_auth_enabled: true
+setup_rhaiis_on_rhel_registry_url: "registry.redhat.io"
+setup_rhaiis_on_rhel_registry_username: ""
+setup_rhaiis_on_rhel_registry_password: ""
+setup_rhaiis_on_rhel_registry_auth_token: ""             # Alternative to username/password
+----
 
-|`vllm_tensor_parallel_size`
-|Tensor parallel size for vLLM
-|1
+=== Service Health Checks
+[source,yaml]
+----
+setup_rhaiis_on_rhel_health_check_retries: 30            # Total retries (30 x 30s = 15 minutes)
+setup_rhaiis_on_rhel_health_check_delay: 30              # Seconds between retries
+setup_rhaiis_on_rhel_health_endpoint: "/docs"            # Health check endpoint
+----
 
-|`vllm_max_model_len`
-|Maximum model length
-|8192
+== Model Pre-download Feature
 
-|`vllm_model`
-|Model to use with vLLM
-|"Groq/Llama-3-Groq-8B-Tool-Use"
+This role includes intelligent model pre-download functionality that:
 
-|`vllm_container_name`
-|Name for the container
-|"vllm"
+* Downloads models to the local cache before starting the service
+* Improves service startup reliability and speed
+* Supports resume capability for interrupted downloads
+* Verifies successful download before proceeding
+* Can be disabled by setting `setup_rhaiis_on_rhel_predownload_model: false`
 
-|`vllm_container_image`
-|Container image to use
-|"secret"
+The pre-download process:
 
-|`vllm_user`
-|User to run the vLLM service
-|`{{ ansible_user_id }}`
-
-|`registry_auth_enabled`
-|Enable container registry authentication
-|true
-
-|`registry_url`
-|Container registry URL
-|"quay.io"
-
-|`registry_username`
-|Username for registry authentication
-|""
-
-|`registry_password`
-|Password for registry authentication
-|""
-
-|`registry_auth_token`
-|Authentication token for registry (alternative to username/password)
-|""
-
-|`vllm_health_check_retries`
-|Number of health check retries
-|30 (30 mins total)
-
-|`vllm_health_check_delay`
-|Seconds between health check retries
-|30
-
-|`vllm_health_endpoint`
-|API endpoint to check for health
-|"/v1/models"
-|===
+1. Installs HuggingFace CLI tools
+2. Checks if the model is already cached
+3. Downloads the model with retry logic (3 attempts)
+4. Verifies successful download
+5. Maps the cache directory into the container
 
 == Example Playbook
 
 [source,yaml]
 ----
----
-- hosts: gpu_servers
-  become: true
+- hosts: rhel_servers
+  become: yes
+  vars:
+    setup_rhaiis_on_rhel_hf_token: "{{ vault_hf_token }}"
+    setup_rhaiis_on_rhel_api_token: "{{ vault_api_token }}"
+    setup_rhaiis_on_rhel_registry_username: "{{ vault_registry_username }}"
+    setup_rhaiis_on_rhel_registry_password: "{{ vault_registry_password }}"
+    setup_rhaiis_on_rhel_vllm_model: "RedHatAI/Mistral-7B-Instruct-v0.3-FP8"
   roles:
-    - role: setup_rhaiis_on_rhel
-      vars:
-        hf_token: "your_actual_hugging_face_token"
-        # Increase health check timeout for slower networks
-        vllm_health_check_retries: 120  # 1 hour total wait time
+    - setup_rhaiis_on_rhel
 ----
 
-=== Using a Registry Authentication Token
+== Dependencies
 
-If you prefer to use a token instead of username/password:
+This role depends on the `setup_nvidia_cuda` role for GPU driver installation and configuration.
 
-[source,yaml]
+== Troubleshooting
+
+=== Model Download Issues
+If model downloads fail or get stuck:
+
+1. Check HuggingFace token validity
+2. Verify internet connectivity
+3. Check available disk space in cache directory
+4. Adjust timeout settings if needed:
+   - Increase `setup_rhaiis_on_rhel_download_timeout` for slower connections
+   - Increase `setup_rhaiis_on_rhel_download_retries` for unreliable networks
+   - Adjust `setup_rhaiis_on_rhel_download_retry_delay` between attempts
+5. Manually test: `huggingface-cli download MODEL_NAME --token YOUR_TOKEN`
+
+=== Service Startup Issues
+Check service logs:
+[source,bash]
 ----
----
-- hosts: gpu_servers
-  become: true
-  roles:
-    - role: setup_rhaiis_on_rhel
-      vars:
-        registry_auth_token: "your_registry_token"
-----
-
-== Role Structure
-
-[source]
-----
-setup_rhaiis_on_rhel/
-├── defaults/
-│   └── main.yml
-├── handlers/
-│   └── main.yml
-├── tasks/
-│   ├── main.yml
-│   ├── configure_registry_auth.yml
-│   └── create_systemd_service.yml
-├── templates/
-│   └── rhaiis.service.j2
-└── README.adoc
+sudo journalctl -u rhaiis -f
+cat /tmp/rhaiis.log
 ----
 
-== Container Registry Authentication
+=== Container Registry Issues
+Verify registry authentication:
+[source,bash]
+----
+podman login registry.redhat.io
+podman pull registry.redhat.io/rhaiis/vllm-cuda-rhel9
+----
 
-This role configures Podman authentication for both the root user and the service user, allowing:
+== License
 
-* Pre-pulling of the container image before starting the service
-* Authentication with username/password or token
-* Separate configuration for root and service users
-
-When enabled (which is the default), you must provide either:
-
-* `registry_username` and `registry_password`, or
-* `registry_auth_token`
-
-== Service Health Check
-
-This role includes a health check that:
-
-. Waits for the RHAIIS service to fully start (including image downloads)
-. Checks the API endpoint to ensure the service is responding correctly
-. Verifies the systemd service status
-. Confirms the container is running
-
-[IMPORTANT]
-====
-If any of these checks fail after the configured retry period, the playbook will fail with an error message.
-====
+Apache License 2.0
 
 == Author Information
 
-Nate Stephany
-nate@redhat.com
+This role was created for deploying Red Hat AI Inference Server on RHEL systems with GPU acceleration support.

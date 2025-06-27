@@ -16,11 +16,8 @@ setup_nvidia_cuda_common_dnf_packages:
   - "python{{ setup_nvidia_cuda_python_version }}-pip"
   - pciutils
   - nvtop
-  - screen
-  - tmux
-  - hyperfine
 
-setup_nvidia_cuda_nvidia_rhel_dnf_packages: 
+setup_nvidia_cuda_nvidia_rhel_dnf_packages:
 
   - "@nvidia-driver:latest-dkms"
   - cuda-toolkit

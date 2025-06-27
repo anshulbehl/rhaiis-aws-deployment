@@ -6,7 +6,7 @@
   vars:
     # Automatically detect the target user for SSH connections
     target_user: "{{ ansible_user | default('ec2-user') }}"
-  
+
   tasks:
     # =========================================
     # AWS Infrastructure Provisioning
@@ -152,7 +152,7 @@
 
     - name: Set instance info for existing instance
       ansible.builtin.set_fact:
-        ec2: 
+        ec2:
           instances: "{{ existing_instance.instances }}"
       when: existing_instance.instances | length > 0
 
@@ -188,12 +188,7 @@
 
     - name: Display inventory file information
       ansible.builtin.debug:
-        msg: |
-          Inventory files created:
-          - Instance-specific: ./instances/{{ instance_name }}/inventory.ini
-          - Convenience symlink: ./inventory.ini
-          
-          Use these for manual access and future playbook runs!
+        msg: "Inventory files created: ./instances/{{ instance_name }}/inventory.ini"
 
     # =========================================
     # Dynamic Inventory Setup for RHAIIS
@@ -209,15 +204,7 @@
 
     - name: Display instance information
       ansible.builtin.debug:
-        msg: |
-          ======================================
-          AWS Instance Provisioned Successfully
-          ======================================
-          Instance Name: {{ instance_name }}
-          Public IP: {{ ec2.instances[0].public_ip_address }}
-          SSH Command: ssh -i ./{{ final_key_name }}.pem {{ target_user }}@{{ ec2.instances[0].public_ip_address }}
-          
-          Now proceeding with RHAIIS installation...
+        msg: "AWS Instance {{ instance_name }} provisioned at {{ ec2.instances[0].public_ip_address }}. Proceeding with RHAIIS installation..."
 
 # =========================================
 # NVIDIA CUDA Setup
@@ -226,7 +213,7 @@
   hosts: gpu_servers
   gather_facts: true
   become: true
-  
+
   tasks:
     - name: Wait for instance to be fully ready
       ansible.builtin.wait_for_connection:
@@ -245,7 +232,7 @@
 - name: Deploy RHAIIS
   hosts: gpu_servers
   become: true
-  
+
   roles:
     - setup_rhaiis_on_rhel
 
@@ -253,49 +240,10 @@
     - name: Display deployment completion
       ansible.builtin.debug:
         msg: |
-          ============================================
           RHAIIS Deployment Completed Successfully!
-          ============================================
 
-          Your RHAIIS instance is ready!
+          API Endpoint: http://{{ ansible_host }}:8000
+          SSH Access: ssh -i ./{{ hostvars['localhost']['final_key_name'] }}.pem {{ ansible_user }}@{{ ansible_host }}
+          Inventory: ./instances/{{ hostvars['localhost']['instance_name'] }}/inventory.ini
 
-          Instance Details:
-          - Public IP: {{ ansible_host }}
-          - API Endpoint: http://{{ ansible_host }}:8000
-          - SSH Access: ssh -i ./{{ hostvars['localhost']['final_key_name'] }}.pem {{ ansible_user }}@{{ ansible_host }}
-
-          Persistent Inventory Files:
-          - ./instances/{{ hostvars['localhost']['instance_name'] }}/inventory.ini
-          - ./inventory.ini (symlink for convenience)
-
-          Manual Management Examples:
-
-          # SSH to instance
-          ssh -i ./{{ hostvars['localhost']['final_key_name'] }}.pem {{ ansible_user }}@{{ ansible_host }}
-
-          # Run Ansible commands
-          ansible gpu_servers -i inventory.ini -m shell -a "systemctl status rhaiis"
-          ansible gpu_servers -i inventory.ini -m shell -a "nvidia-smi"
-
-          # Run additional playbooks
-          ansible-playbook maintenance.yml -i inventory.ini
-
-          API Test Commands:
-
-          # Check available models
-          curl -s http://{{ ansible_host }}:8000/v1/models \
-            -H "Authorization: Bearer {{ setup_rhaiis_on_rhel_api_token }}" | jq
-
-          # Test text generation
-          curl -X POST http://{{ ansible_host }}:8000/v1/completions \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer {{ setup_rhaiis_on_rhel_api_token }}" \
-            -d '{
-              "model": "{{ setup_rhaiis_on_rhel_vllm_model }}",
-              "prompt": "Write a short poem about Linux",
-              "max_tokens": 100,
-              "temperature": 0.7
-            }'
-
-          For more examples, see the README.md file.
-
+          Test with: curl http://{{ ansible_host }}:8000/docs

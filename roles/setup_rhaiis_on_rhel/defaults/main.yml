@@ -17,6 +17,14 @@ setup_rhaiis_on_rhel_vllm_container_name: "rhaiis"
 setup_rhaiis_on_rhel_vllm_container_image: "registry.redhat.io/rhaiis/vllm-cuda-rhel9"
 setup_rhaiis_on_rhel_mem_overcommit: "1"
 
+# Model pre-download settings
+setup_rhaiis_on_rhel_predownload_model: true     # Set to false to skip pre-download
+setup_rhaiis_on_rhel_download_timeout: 600       # Download timeout in seconds (10 minutes)
+setup_rhaiis_on_rhel_download_retries: 3         # Number of download retry attempts
+setup_rhaiis_on_rhel_download_retry_delay: 60    # Delay between retries in seconds
+setup_rhaiis_on_rhel_download_async_timeout: 1200 # Ansible async timeout (20 minutes)
+setup_rhaiis_on_rhel_download_poll_interval: 30  # Ansible polling interval in seconds
+
 # Registry authentication settings
 setup_rhaiis_on_rhel_registry_auth_enabled: true
 setup_rhaiis_on_rhel_registry_url: "registry.redhat.io"
